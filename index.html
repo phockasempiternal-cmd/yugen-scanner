@@ -89,13 +89,18 @@
           })
         });
 
-        const datos = await respuesta.json();
+       const datos = await respuesta.json();
 
-        if (!respuesta.ok || datos.ok !== true) {
-          throw new Error(
-            datos.mensaje || "El servidor no pudo registrar la asistencia."
-          );
-        }
+if (!respuesta.ok || datos.ok === false) {
+  throw new Error(
+    datos.mensaje || "El servidor no pudo registrar la asistencia."
+  );
+}
+
+estado.textContent =
+  "✅ ¡Asistencia registrada!\n" +
+  (datos.nombre || datos.alumno || "") +
+  (datos.mensaje ? "\n" + datos.mensaje : "");
 
         estado.textContent =
           "✅ ¡Asistencia registrada!\n" +
