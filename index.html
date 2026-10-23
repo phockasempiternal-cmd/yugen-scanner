@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Yugen | Escáner QR</title>
+  <title>Yugen | Control de asistencia</title>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
     body {
@@ -23,11 +23,14 @@
       font-size: 16px;
       cursor: pointer;
     }
+    button:disabled { opacity: .6; }
     #estado {
       margin: 16px 0;
       padding: 12px;
       background: white;
       overflow-wrap: anywhere;
+      white-space: pre-wrap;
+      border-radius: 8px;
     }
     #reader {
       width: 100%;
@@ -37,7 +40,7 @@
 </head>
 <body>
   <h1>Yugen Jiu-Jitsu</h1>
-  <p>Prueba de cámara para el control de asistencia.</p>
+  <p>Control de asistencia mediante código QR.</p>
 
   <button id="iniciar">Activar cámara</button>
   <button id="detener" hidden>Detener cámara</button>
@@ -46,12 +49,70 @@
   <div id="reader"></div>
 
   <script>
+    const API_URL =
+      "https://yugen-asistencia.phockasempiternal.workers.dev";
+
     let lector = null;
     let activo = false;
+    let enviando = false;
+    let ultimoToken = "";
+    let ultimoMomento = 0;
 
     const estado = document.getElementById("estado");
     const iniciar = document.getElementById("iniciar");
     const detener = document.getElementById("detener");
+
+    async function registrarQR(texto) {
+      const token = texto.trim();
+      const ahora = Date.now();
+
+      // Evita enviar repetidamente el mismo QR al mantenerlo en cámara.
+      if (enviando ||
+          (token === ultimoToken && ahora - ultimoMomento < 5000)) {
+        return;
+      }
+
+      ultimoToken = token;
+      ultimoMomento = ahora;
+      enviando = true;
+      estado.textContent = "QR detectado. Registrando asistencia...";
+
+      try {
+        const respuesta = await fetch(API_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "text/plain;charset=UTF-8"
+          },
+          body: JSON.stringify({
+            action: "registrarAsistencia",
+            token: token
+          })
+        });
+
+        const datos = await respuesta.json();
+
+        if (!respuesta.ok || datos.ok !== true) {
+          throw new Error(
+            datos.mensaje || "El servidor no pudo registrar la asistencia."
+          );
+        }
+
+        estado.textContent =
+          "✅ ¡Asistencia registrada!\n" +
+          (datos.nombre || datos.alumno || "") +
+          (datos.mensaje ? "\n" + datos.mensaje : "");
+      } catch (error) {
+        console.error(error);
+        estado.textContent =
+          "No se pudo confirmar el registro.\n" +
+          (error.message || String(error)) +
+          "\nPuedes volver a intentar escanear el QR.";
+        // Permite reintentar después de un error.
+        ultimoToken = "";
+      } finally {
+        enviando = false;
+      }
+    }
 
     iniciar.addEventListener("click", async () => {
       iniciar.disabled = true;
@@ -59,7 +120,7 @@
 
       try {
         if (!window.isSecureContext) {
-          throw new Error("La página no está en un contexto HTTPS seguro.");
+          throw new Error("La página debe abrirse mediante HTTPS.");
         }
 
         if (typeof Html5Qrcode === "undefined") {
@@ -76,20 +137,17 @@
             fps: 10,
             qrbox: { width: 230, height: 230 }
           },
-          (texto) => {
-            estado.textContent = "QR detectado: " + texto;
-          },
+          (texto) => registrarQR(texto),
           () => {}
         );
 
         activo = true;
         iniciar.hidden = true;
         detener.hidden = false;
-        estado.textContent = "Cámara activa. Apunta a un código QR.";
+        estado.textContent = "Cámara activa. Apunta al QR de un alumno.";
       } catch (error) {
         console.error(error);
-        estado.textContent =
-          "Error: " + (error.message || String(error));
+        estado.textContent = "Error: " + (error.message || String(error));
       } finally {
         iniciar.disabled = false;
       }
