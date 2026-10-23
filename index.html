@@ -97,27 +97,20 @@ if (!respuesta.ok || datos.ok === false) {
   );
 }
 
+const alumnoTexto =
+  typeof datos.alumno === "string"
+    ? datos.alumno
+    : datos.alumno && typeof datos.alumno === "object"
+      ? (datos.alumno.nombreCompleto ||
+         datos.alumno.nombre ||
+         datos.alumno.Nombre ||
+         "")
+      : "";
+
 estado.textContent =
   "✅ ¡Asistencia registrada!\n" +
-  (datos.nombre || datos.alumno || "") +
+  (datos.nombre || alumnoTexto) +
   (datos.mensaje ? "\n" + datos.mensaje : "");
-
-        estado.textContent =
-          "✅ ¡Asistencia registrada!\n" +
-          (datos.nombre || datos.alumno || "") +
-          (datos.mensaje ? "\n" + datos.mensaje : "");
-      } catch (error) {
-        console.error(error);
-        estado.textContent =
-          "No se pudo confirmar el registro.\n" +
-          (error.message || String(error)) +
-          "\nPuedes volver a intentar escanear el QR.";
-        // Permite reintentar después de un error.
-        ultimoToken = "";
-      } finally {
-        enviando = false;
-      }
-    }
 
     iniciar.addEventListener("click", async () => {
       iniciar.disabled = true;
