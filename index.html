@@ -1,0 +1,109 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Yugen | Escáner QR</title>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 24px;
+      background: #f5f5f5;
+      color: #222;
+    }
+    h1 { text-align: center; }
+    button {
+      width: 100%;
+      padding: 14px;
+      margin: 8px 0;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    #estado {
+      margin: 16px 0;
+      padding: 12px;
+      background: white;
+      overflow-wrap: anywhere;
+    }
+    #reader {
+      width: 100%;
+      background: white;
+    }
+  </style>
+</head>
+<body>
+  <h1>Yugen Jiu-Jitsu</h1>
+  <p>Prueba de cámara para el control de asistencia.</p>
+
+  <button id="iniciar">Activar cámara</button>
+  <button id="detener" hidden>Detener cámara</button>
+
+  <div id="estado">Pulsa «Activar cámara» para comenzar.</div>
+  <div id="reader"></div>
+
+  <script>
+    let lector = null;
+    let activo = false;
+
+    const estado = document.getElementById("estado");
+    const iniciar = document.getElementById("iniciar");
+    const detener = document.getElementById("detener");
+
+    iniciar.addEventListener("click", async () => {
+      iniciar.disabled = true;
+      estado.textContent = "Solicitando permiso de cámara...";
+
+      try {
+        if (!window.isSecureContext) {
+          throw new Error("La página no está en un contexto HTTPS seguro.");
+        }
+
+        if (typeof Html5Qrcode === "undefined") {
+          throw new Error("No se pudo cargar el lector QR.");
+        }
+
+        if (!lector) {
+          lector = new Html5Qrcode("reader");
+        }
+
+        await lector.start(
+          { facingMode: "environment" },
+          {
+            fps: 10,
+            qrbox: { width: 230, height: 230 }
+          },
+          (texto) => {
+            estado.textContent = "QR detectado: " + texto;
+          },
+          () => {}
+        );
+
+        activo = true;
+        iniciar.hidden = true;
+        detener.hidden = false;
+        estado.textContent = "Cámara activa. Apunta a un código QR.";
+      } catch (error) {
+        console.error(error);
+        estado.textContent =
+          "Error: " + (error.message || String(error));
+      } finally {
+        iniciar.disabled = false;
+      }
+    });
+
+    detener.addEventListener("click", async () => {
+      if (lector && activo) {
+        await lector.stop();
+        activo = false;
+      }
+      detener.hidden = true;
+      iniciar.hidden = false;
+      estado.textContent = "Cámara detenida.";
+    });
+  </script>
+</body>
+</html>
